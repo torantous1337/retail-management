@@ -16,6 +16,13 @@ type ProductService interface {
 	DeleteProduct(ctx context.Context, id string) error
 }
 
+// CategoryService defines the interface for category business logic.
+type CategoryService interface {
+	CreateCategory(ctx context.Context, category *domain.Category) error
+	GetCategory(ctx context.Context, id string) (*domain.Category, error)
+	ListCategories(ctx context.Context, limit, offset int) ([]*domain.Category, error)
+}
+
 // AuditService defines the interface for audit logging with tamper-proofing.
 type AuditService interface {
 	LogAction(ctx context.Context, action, userID string, payload map[string]interface{}) error

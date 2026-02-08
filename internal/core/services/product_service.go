@@ -9,20 +9,41 @@ import (
 
 // ProductService implements the product business logic.
 type ProductService struct {
-	productRepo ports.ProductRepository
-	auditSvc    ports.AuditService
+	productRepo  ports.ProductRepository
+	categoryRepo ports.CategoryRepository
+	auditSvc     ports.AuditService
 }
 
 // NewProductService creates a new product service instance.
-func NewProductService(productRepo ports.ProductRepository, auditSvc ports.AuditService) *ProductService {
+func NewProductService(productRepo ports.ProductRepository, categoryRepo ports.CategoryRepository, auditSvc ports.AuditService) *ProductService {
 	return &ProductService{
-		productRepo: productRepo,
-		auditSvc:    auditSvc,
+		productRepo:  productRepo,
+		categoryRepo: categoryRepo,
+		auditSvc:     auditSvc,
 	}
+}
+
+// validateProductProperties fetches the category and validates product properties.
+func (s *ProductService) validateProductProperties(ctx context.Context, product *domain.Product) error {
+	if product.CategoryID == "" {
+		return nil
+	}
+
+	category, err := s.categoryRepo.GetByID(ctx, product.CategoryID)
+	if err != nil {
+		return err
+	}
+
+	return ValidateProperties(category, product.Properties)
 }
 
 // CreateProduct creates a new product and logs the action.
 func (s *ProductService) CreateProduct(ctx context.Context, product *domain.Product) error {
+	// Validate properties against category blueprint
+	if err := s.validateProductProperties(ctx, product); err != nil {
+		return err
+	}
+
 	err := s.productRepo.Create(ctx, product)
 	if err != nil {
 		return err
@@ -60,6 +81,11 @@ func (s *ProductService) ListProducts(ctx context.Context, limit, offset int) ([
 
 // UpdateProduct updates a product and logs the action.
 func (s *ProductService) UpdateProduct(ctx context.Context, product *domain.Product) error {
+	// Validate properties against category blueprint
+	if err := s.validateProductProperties(ctx, product); err != nil {
+		return err
+	}
+
 	err := s.productRepo.Update(ctx, product)
 	if err != nil {
 		return err

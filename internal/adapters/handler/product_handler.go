@@ -1,12 +1,14 @@
 package handler
 
 import (
+	"errors"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/torantous1337/retail-management/internal/core/domain"
 	"github.com/torantous1337/retail-management/internal/core/ports"
+	"github.com/torantous1337/retail-management/internal/core/services"
 )
 
 // ProductHandler handles HTTP requests for products.
@@ -25,6 +27,7 @@ func NewProductHandler(productSvc ports.ProductService) *ProductHandler {
 type CreateProductRequest struct {
 	Name       string                 `json:"name"`
 	SKU        string                 `json:"sku"`
+	CategoryID string                 `json:"category_id"`
 	BasePrice  float64                `json:"base_price"`
 	Properties map[string]interface{} `json:"properties"`
 }
@@ -34,6 +37,7 @@ type ProductResponse struct {
 	ID         string                 `json:"id"`
 	Name       string                 `json:"name"`
 	SKU        string                 `json:"sku"`
+	CategoryID string                 `json:"category_id,omitempty"`
 	BasePrice  float64                `json:"base_price"`
 	Properties map[string]interface{} `json:"properties"`
 	CreatedAt  time.Time              `json:"created_at"`
@@ -61,6 +65,7 @@ func (h *ProductHandler) CreateProduct(c *fiber.Ctx) error {
 		ID:         uuid.New().String(),
 		Name:       req.Name,
 		SKU:        req.SKU,
+		CategoryID: req.CategoryID,
 		BasePrice:  req.BasePrice,
 		Properties: req.Properties,
 		CreatedAt:  now,
@@ -69,6 +74,11 @@ func (h *ProductHandler) CreateProduct(c *fiber.Ctx) error {
 
 	err := h.productSvc.CreateProduct(c.Context(), product)
 	if err != nil {
+		if errors.Is(err, services.ErrInvalidProperty) {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to create product",
 		})
@@ -167,6 +177,7 @@ func (h *ProductHandler) UpdateProduct(c *fiber.Ctx) error {
 		ID:         id,
 		Name:       req.Name,
 		SKU:        req.SKU,
+		CategoryID: req.CategoryID,
 		BasePrice:  req.BasePrice,
 		Properties: req.Properties,
 		CreatedAt:  existing.CreatedAt,
@@ -175,6 +186,11 @@ func (h *ProductHandler) UpdateProduct(c *fiber.Ctx) error {
 
 	err = h.productSvc.UpdateProduct(c.Context(), product)
 	if err != nil {
+		if errors.Is(err, services.ErrInvalidProperty) {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
 			"error": "Failed to update product",
 		})
@@ -208,6 +224,7 @@ func (h *ProductHandler) toResponse(product *domain.Product) ProductResponse {
 		ID:         product.ID,
 		Name:       product.Name,
 		SKU:        product.SKU,
+		CategoryID: product.CategoryID,
 		BasePrice:  product.BasePrice,
 		Properties: product.Properties,
 		CreatedAt:  product.CreatedAt,

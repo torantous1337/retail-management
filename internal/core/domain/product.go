@@ -8,6 +8,7 @@ type Product struct {
 	ID         string
 	Name       string
 	SKU        string
+	CategoryID string
 	BasePrice  float64
 	Properties map[string]interface{} // Flexible attributes (voltage, amperage, etc.)
 	CreatedAt  time.Time
