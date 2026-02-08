@@ -2,6 +2,7 @@ package ports
 
 import (
 	"context"
+	"io"
 
 	"github.com/torantous1337/retail-management/internal/core/domain"
 )
@@ -14,6 +15,7 @@ type ProductService interface {
 	ListProducts(ctx context.Context, limit, offset int) ([]*domain.Product, error)
 	UpdateProduct(ctx context.Context, product *domain.Product) error
 	DeleteProduct(ctx context.Context, id string) error
+	ImportProducts(ctx context.Context, categoryID string, csvReader io.Reader) (int, error)
 }
 
 // CategoryService defines the interface for category business logic.

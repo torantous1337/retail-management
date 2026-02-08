@@ -14,6 +14,8 @@ import (
 // AuditService implements the audit logging service with blockchain-like hashing.
 type AuditService struct {
 	auditRepo ports.AuditLogRepository
+	prevHash  *string // optional override for transactional use
+	lastHash  string  // tracks last computed hash
 }
 
 // NewAuditService creates a new audit service instance.
@@ -23,13 +25,28 @@ func NewAuditService(auditRepo ports.AuditLogRepository) *AuditService {
 	}
 }
 
+// SetPrevHash sets an explicit previous hash for sequential audit logging
+// within a transaction, avoiding the read-compute-write race condition.
+func (s *AuditService) SetPrevHash(hash string) {
+	s.prevHash = &hash
+}
+
+// LastHash returns the hash of the most recently created audit log entry.
+func (s *AuditService) LastHash() string {
+	return s.lastHash
+}
+
 // LogAction creates an audit log entry with tamper-proof hashing.
 func (s *AuditService) LogAction(ctx context.Context, action, userID string, payload map[string]interface{}) error {
-	// Get the last log entry to get its hash
-	lastLog, err := s.auditRepo.GetLastLog(ctx)
-	prevHash := ""
-	if err == nil && lastLog != nil {
-		prevHash = lastLog.CurrentHash
+	var prevHash string
+	if s.prevHash != nil {
+		prevHash = *s.prevHash
+	} else {
+		// Get the last log entry to get its hash
+		lastLog, err := s.auditRepo.GetLastLog(ctx)
+		if err == nil && lastLog != nil {
+			prevHash = lastLog.CurrentHash
+		}
 	}
 
 	// Create the new log entry
@@ -46,6 +63,7 @@ func (s *AuditService) LogAction(ctx context.Context, action, userID string, pay
 	log.CurrentHash = s.calculateHash(payload, now, prevHash)
 
 	// Store the log entry
+	s.lastHash = log.CurrentHash
 	return s.auditRepo.Create(ctx, log)
 }
 

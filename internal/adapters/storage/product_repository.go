@@ -13,11 +13,11 @@ import (
 
 // ProductRepository implements the product repository using SQLite.
 type ProductRepository struct {
-	db *sqlx.DB
+	db sqlx.ExtContext
 }
 
 // NewProductRepository creates a new product repository instance.
-func NewProductRepository(db *sqlx.DB) *ProductRepository {
+func NewProductRepository(db sqlx.ExtContext) *ProductRepository {
 	return &ProductRepository{db: db}
 }
 
@@ -65,7 +65,7 @@ func (r *ProductRepository) GetByID(ctx context.Context, id string) (*domain.Pro
 	query := `SELECT * FROM products WHERE id = ?`
 
 	var row productRow
-	err := r.db.GetContext(ctx, &row, query, id)
+	err := sqlx.GetContext(ctx, r.db, &row, query, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, errors.New("product not found")
@@ -81,7 +81,7 @@ func (r *ProductRepository) GetBySKU(ctx context.Context, sku string) (*domain.P
 	query := `SELECT * FROM products WHERE sku = ?`
 
 	var row productRow
-	err := r.db.GetContext(ctx, &row, query, sku)
+	err := sqlx.GetContext(ctx, r.db, &row, query, sku)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, errors.New("product not found")
@@ -97,7 +97,7 @@ func (r *ProductRepository) List(ctx context.Context, limit, offset int) ([]*dom
 	query := `SELECT * FROM products ORDER BY created_at DESC LIMIT ? OFFSET ?`
 
 	var rows []productRow
-	err := r.db.SelectContext(ctx, &rows, query, limit, offset)
+	err := sqlx.SelectContext(ctx, r.db, &rows, query, limit, offset)
 	if err != nil {
 		return nil, err
 	}

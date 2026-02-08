@@ -30,3 +30,15 @@ type AuditLogRepository interface {
 	List(ctx context.Context, limit, offset int) ([]*domain.AuditLog, error)
 	VerifyChain(ctx context.Context) (bool, error)
 }
+
+// Ports bundles all repository interfaces for use in transactions.
+type Ports struct {
+	ProductRepo  ProductRepository
+	CategoryRepo CategoryRepository
+	AuditRepo    AuditLogRepository
+}
+
+// TransactionManager provides atomic transaction support.
+type TransactionManager interface {
+	WithTx(ctx context.Context, fn func(tx Ports) error) error
+}

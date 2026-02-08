@@ -218,6 +218,42 @@ func (h *ProductHandler) DeleteProduct(c *fiber.Ctx) error {
 	return c.Status(fiber.StatusNoContent).Send(nil)
 }
 
+// ImportProducts handles POST /products/import
+func (h *ProductHandler) ImportProducts(c *fiber.Ctx) error {
+	categoryID := c.FormValue("category_id")
+
+	fileHeader, err := c.FormFile("file")
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "File field 'file' is required",
+		})
+	}
+
+	file, err := fileHeader.Open()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to open uploaded file",
+		})
+	}
+	defer file.Close()
+
+	count, err := h.productSvc.ImportProducts(c.Context(), categoryID, file)
+	if err != nil {
+		if errors.Is(err, services.ErrInvalidProperty) {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": err.Error(),
+			})
+		}
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"imported": count,
+	})
+}
+
 // toResponse converts a domain product to a response DTO.
 func (h *ProductHandler) toResponse(product *domain.Product) ProductResponse {
 	return ProductResponse{

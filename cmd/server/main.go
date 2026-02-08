@@ -35,11 +35,12 @@ func main() {
 	productRepo := storage.NewProductRepository(db)
 	auditRepo := storage.NewAuditLogRepository(db)
 	categoryRepo := storage.NewCategoryRepository(db)
+	txManager := storage.NewSQLTransactionManager(db)
 
 	// Initialize services (Clean Architecture: Services depend on Repository interfaces)
 	auditSvc := services.NewAuditService(auditRepo)
 	categorySvc := services.NewCategoryService(categoryRepo)
-	productSvc := services.NewProductService(productRepo, categoryRepo, auditSvc)
+	productSvc := services.NewProductService(productRepo, categoryRepo, auditSvc, txManager)
 
 	// Initialize HTTP handlers
 	productHandler := handler.NewProductHandler(productSvc)
@@ -71,6 +72,7 @@ func main() {
 	// Product routes
 	products := api.Group("/products")
 	products.Post("/", productHandler.CreateProduct)
+	products.Post("/import", productHandler.ImportProducts)
 	products.Get("/", productHandler.ListProducts)
 	products.Get("/:id", productHandler.GetProduct)
 	products.Get("/sku/:sku", productHandler.GetProductBySKU)
