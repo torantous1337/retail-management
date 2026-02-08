@@ -16,6 +16,13 @@ type ProductRepository interface {
 	Delete(ctx context.Context, id string) error
 }
 
+// CategoryRepository defines the interface for category data access.
+type CategoryRepository interface {
+	Create(ctx context.Context, category *domain.Category) error
+	GetByID(ctx context.Context, id string) (*domain.Category, error)
+	List(ctx context.Context, limit, offset int) ([]*domain.Category, error)
+}
+
 // AuditLogRepository defines the interface for audit log data access.
 type AuditLogRepository interface {
 	Create(ctx context.Context, log *domain.AuditLog) error

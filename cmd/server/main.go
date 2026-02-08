@@ -34,14 +34,17 @@ func main() {
 	// Initialize repositories
 	productRepo := storage.NewProductRepository(db)
 	auditRepo := storage.NewAuditLogRepository(db)
+	categoryRepo := storage.NewCategoryRepository(db)
 
 	// Initialize services (Clean Architecture: Services depend on Repository interfaces)
 	auditSvc := services.NewAuditService(auditRepo)
-	productSvc := services.NewProductService(productRepo, auditSvc)
+	categorySvc := services.NewCategoryService(categoryRepo)
+	productSvc := services.NewProductService(productRepo, categoryRepo, auditSvc)
 
 	// Initialize HTTP handlers
 	productHandler := handler.NewProductHandler(productSvc)
 	auditHandler := handler.NewAuditHandler(auditSvc)
+	categoryHandler := handler.NewCategoryHandler(categorySvc)
 
 	// Create Fiber app
 	app := fiber.New(fiber.Config{
@@ -73,6 +76,11 @@ func main() {
 	products.Get("/sku/:sku", productHandler.GetProductBySKU)
 	products.Put("/:id", productHandler.UpdateProduct)
 	products.Delete("/:id", productHandler.DeleteProduct)
+
+	// Category routes
+	categories := api.Group("/categories")
+	categories.Post("/", categoryHandler.CreateCategory)
+	categories.Get("/", categoryHandler.ListCategories)
 
 	// Audit log routes
 	audit := api.Group("/audit-logs")

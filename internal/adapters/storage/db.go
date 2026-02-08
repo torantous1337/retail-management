@@ -29,18 +29,23 @@ func InitDB(dbPath string) (*sqlx.DB, error) {
 	return db, nil
 }
 
-// runMigrations executes the SQL schema file.
+// runMigrations executes the SQL schema files.
 func runMigrations(db *sqlx.DB) error {
-	// Read the schema file
-	schema, err := os.ReadFile("migrations/schema.sql")
-	if err != nil {
-		return fmt.Errorf("failed to read schema file: %w", err)
+	migrationFiles := []string{
+		"migrations/schema.sql",
+		"migrations/002_categories.sql",
 	}
 
-	// Execute the schema
-	_, err = db.Exec(string(schema))
-	if err != nil {
-		return fmt.Errorf("failed to execute schema: %w", err)
+	for _, file := range migrationFiles {
+		schema, err := os.ReadFile(file)
+		if err != nil {
+			return fmt.Errorf("failed to read migration file %s: %w", file, err)
+		}
+
+		_, err = db.Exec(string(schema))
+		if err != nil {
+			return fmt.Errorf("failed to execute migration %s: %w", file, err)
+		}
 	}
 
 	return nil

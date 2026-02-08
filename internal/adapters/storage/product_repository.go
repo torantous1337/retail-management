@@ -26,6 +26,7 @@ type productRow struct {
 	ID         string         `db:"id"`
 	Name       string         `db:"name"`
 	SKU        string         `db:"sku"`
+	CategoryID sql.NullString `db:"category_id"`
 	BasePrice  float64        `db:"base_price"`
 	Properties sql.NullString `db:"properties"`
 	CreatedAt  time.Time      `db:"created_at"`
@@ -41,14 +42,15 @@ func (r *ProductRepository) Create(ctx context.Context, product *domain.Product)
 	}
 
 	query := `
-		INSERT INTO products (id, name, sku, base_price, properties, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO products (id, name, sku, category_id, base_price, properties, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	_, err = r.db.ExecContext(ctx, query,
 		product.ID,
 		product.Name,
 		product.SKU,
+		sql.NullString{String: product.CategoryID, Valid: product.CategoryID != ""},
 		product.BasePrice,
 		string(propertiesJSON),
 		product.CreatedAt,
@@ -122,13 +124,14 @@ func (r *ProductRepository) Update(ctx context.Context, product *domain.Product)
 
 	query := `
 		UPDATE products
-		SET name = ?, sku = ?, base_price = ?, properties = ?
+		SET name = ?, sku = ?, category_id = ?, base_price = ?, properties = ?
 		WHERE id = ?
 	`
 
 	_, err = r.db.ExecContext(ctx, query,
 		product.Name,
 		product.SKU,
+		sql.NullString{String: product.CategoryID, Valid: product.CategoryID != ""},
 		product.BasePrice,
 		string(propertiesJSON),
 		product.ID,
@@ -147,12 +150,13 @@ func (r *ProductRepository) Delete(ctx context.Context, id string) error {
 // toDomain converts a database row to a domain entity.
 func (r *ProductRepository) toDomain(row *productRow) (*domain.Product, error) {
 	product := &domain.Product{
-		ID:        row.ID,
-		Name:      row.Name,
-		SKU:       row.SKU,
-		BasePrice: row.BasePrice,
-		CreatedAt: row.CreatedAt,
-		UpdatedAt: row.UpdatedAt,
+		ID:         row.ID,
+		Name:       row.Name,
+		SKU:        row.SKU,
+		CategoryID: row.CategoryID.String,
+		BasePrice:  row.BasePrice,
+		CreatedAt:  row.CreatedAt,
+		UpdatedAt:  row.UpdatedAt,
 	}
 
 	// Deserialize properties from JSON
