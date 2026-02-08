@@ -81,9 +81,6 @@ func (m *searchMockProductRepository) GetInventorySummary(_ context.Context) (*d
 	catMap := make(map[string]*domain.CategoryBreakdown)
 	for _, p := range m.products {
 		catID := p.CategoryID
-		if catID == "" {
-			catID = ""
-		}
 		if _, ok := catMap[catID]; !ok {
 			catMap[catID] = &domain.CategoryBreakdown{CategoryID: catID}
 		}
