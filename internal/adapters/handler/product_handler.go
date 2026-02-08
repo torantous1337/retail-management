@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -149,6 +150,63 @@ func (h *ProductHandler) ListProducts(c *fiber.Ctx) error {
 	})
 }
 
+// SearchProducts handles GET /products/search
+func (h *ProductHandler) SearchProducts(c *fiber.Ctx) error {
+	opts := domain.FilterOptions{
+		Query:      c.Query("q"),
+		CategoryID: c.Query("category_id"),
+		Limit:      c.QueryInt("limit", 10),
+		Offset:     c.QueryInt("offset", 0),
+	}
+
+	if minStr := c.Query("min_price"); minStr != "" {
+		v, err := strconv.ParseFloat(minStr, 64)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Invalid min_price",
+			})
+		}
+		opts.MinPrice = &v
+	}
+
+	if maxStr := c.Query("max_price"); maxStr != "" {
+		v, err := strconv.ParseFloat(maxStr, 64)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Invalid max_price",
+			})
+		}
+		opts.MaxPrice = &v
+	}
+
+	// Collect property filters from query params prefixed with "prop."
+	opts.Properties = make(map[string]string)
+	c.Context().QueryArgs().VisitAll(func(key, value []byte) {
+		k := string(key)
+		if len(k) > 5 && k[:5] == "prop." {
+			opts.Properties[k[5:]] = string(value)
+		}
+	})
+
+	products, err := h.productSvc.SearchProducts(c.Context(), opts)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to search products",
+		})
+	}
+
+	responses := make([]ProductResponse, 0, len(products))
+	for _, product := range products {
+		responses = append(responses, h.toResponse(product))
+	}
+
+	return c.JSON(fiber.Map{
+		"products": responses,
+		"limit":    opts.Limit,
+		"offset":   opts.Offset,
+	})
+}
+
 // UpdateProduct handles PUT /products/:id
 func (h *ProductHandler) UpdateProduct(c *fiber.Ctx) error {
 	id := c.Params("id")
@@ -216,6 +274,37 @@ func (h *ProductHandler) DeleteProduct(c *fiber.Ctx) error {
 	}
 
 	return c.Status(fiber.StatusNoContent).Send(nil)
+}
+
+// ImportProducts handles POST /products/import
+func (h *ProductHandler) ImportProducts(c *fiber.Ctx) error {
+	categoryID := c.FormValue("category_id")
+
+	fileHeader, err := c.FormFile("file")
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": "File field 'file' is required",
+		})
+	}
+
+	file, err := fileHeader.Open()
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to open uploaded file",
+		})
+	}
+	defer file.Close()
+
+	count, err := h.productSvc.ImportProducts(c.Context(), categoryID, file)
+	if err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+			"error": err.Error(),
+		})
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{
+		"imported": count,
+	})
 }
 
 // toResponse converts a domain product to a response DTO.

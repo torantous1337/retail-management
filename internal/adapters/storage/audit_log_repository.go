@@ -15,11 +15,11 @@ import (
 
 // AuditLogRepository implements the audit log repository using SQLite.
 type AuditLogRepository struct {
-	db *sqlx.DB
+	db sqlx.ExtContext
 }
 
 // NewAuditLogRepository creates a new audit log repository instance.
-func NewAuditLogRepository(db *sqlx.DB) *AuditLogRepository {
+func NewAuditLogRepository(db sqlx.ExtContext) *AuditLogRepository {
 	return &AuditLogRepository{db: db}
 }
 
@@ -79,7 +79,7 @@ func (r *AuditLogRepository) GetLastLog(ctx context.Context) (*domain.AuditLog, 
 	query := `SELECT * FROM audit_logs ORDER BY id DESC LIMIT 1`
 
 	var row auditLogRow
-	err := r.db.GetContext(ctx, &row, query)
+	err := sqlx.GetContext(ctx, r.db, &row, query)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil // No logs yet
@@ -95,7 +95,7 @@ func (r *AuditLogRepository) List(ctx context.Context, limit, offset int) ([]*do
 	query := `SELECT * FROM audit_logs ORDER BY id DESC LIMIT ? OFFSET ?`
 
 	var rows []auditLogRow
-	err := r.db.SelectContext(ctx, &rows, query, limit, offset)
+	err := sqlx.SelectContext(ctx, r.db, &rows, query, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -117,7 +117,7 @@ func (r *AuditLogRepository) VerifyChain(ctx context.Context) (bool, error) {
 	query := `SELECT * FROM audit_logs ORDER BY id ASC`
 
 	var rows []auditLogRow
-	err := r.db.SelectContext(ctx, &rows, query)
+	err := sqlx.SelectContext(ctx, r.db, &rows, query)
 	if err != nil {
 		return false, err
 	}

@@ -12,6 +12,8 @@ type ProductRepository interface {
 	GetByID(ctx context.Context, id string) (*domain.Product, error)
 	GetBySKU(ctx context.Context, sku string) (*domain.Product, error)
 	List(ctx context.Context, limit, offset int) ([]*domain.Product, error)
+	Search(ctx context.Context, opts domain.FilterOptions, allowedKeys []string) ([]*domain.Product, error)
+	GetInventorySummary(ctx context.Context) (*domain.InventorySummary, error)
 	Update(ctx context.Context, product *domain.Product) error
 	Delete(ctx context.Context, id string) error
 }
@@ -29,4 +31,16 @@ type AuditLogRepository interface {
 	GetLastLog(ctx context.Context) (*domain.AuditLog, error)
 	List(ctx context.Context, limit, offset int) ([]*domain.AuditLog, error)
 	VerifyChain(ctx context.Context) (bool, error)
+}
+
+// Ports bundles all repository interfaces for use in transactions.
+type Ports struct {
+	ProductRepo  ProductRepository
+	CategoryRepo CategoryRepository
+	AuditRepo    AuditLogRepository
+}
+
+// TransactionManager provides atomic transaction support.
+type TransactionManager interface {
+	WithTx(ctx context.Context, fn func(tx Ports) error) error
 }

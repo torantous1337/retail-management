@@ -12,11 +12,11 @@ import (
 
 // CategoryRepository implements the category repository using SQLite.
 type CategoryRepository struct {
-	db *sqlx.DB
+	db sqlx.ExtContext
 }
 
 // NewCategoryRepository creates a new category repository instance.
-func NewCategoryRepository(db *sqlx.DB) *CategoryRepository {
+func NewCategoryRepository(db sqlx.ExtContext) *CategoryRepository {
 	return &CategoryRepository{db: db}
 }
 
@@ -44,7 +44,7 @@ func (r *CategoryRepository) GetByID(ctx context.Context, id string) (*domain.Ca
 	query := `SELECT * FROM categories WHERE id = ?`
 
 	var row categoryRow
-	err := r.db.GetContext(ctx, &row, query, id)
+	err := sqlx.GetContext(ctx, r.db, &row, query, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, errors.New("category not found")
@@ -60,7 +60,7 @@ func (r *CategoryRepository) List(ctx context.Context, limit, offset int) ([]*do
 	query := `SELECT * FROM categories ORDER BY name LIMIT ? OFFSET ?`
 
 	var rows []categoryRow
-	err := r.db.SelectContext(ctx, &rows, query, limit, offset)
+	err := sqlx.SelectContext(ctx, r.db, &rows, query, limit, offset)
 	if err != nil {
 		return nil, err
 	}

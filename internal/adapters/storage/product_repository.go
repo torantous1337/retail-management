@@ -5,6 +5,9 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/jmoiron/sqlx"
@@ -13,11 +16,11 @@ import (
 
 // ProductRepository implements the product repository using SQLite.
 type ProductRepository struct {
-	db *sqlx.DB
+	db sqlx.ExtContext
 }
 
 // NewProductRepository creates a new product repository instance.
-func NewProductRepository(db *sqlx.DB) *ProductRepository {
+func NewProductRepository(db sqlx.ExtContext) *ProductRepository {
 	return &ProductRepository{db: db}
 }
 
@@ -65,7 +68,7 @@ func (r *ProductRepository) GetByID(ctx context.Context, id string) (*domain.Pro
 	query := `SELECT * FROM products WHERE id = ?`
 
 	var row productRow
-	err := r.db.GetContext(ctx, &row, query, id)
+	err := sqlx.GetContext(ctx, r.db, &row, query, id)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, errors.New("product not found")
@@ -81,7 +84,7 @@ func (r *ProductRepository) GetBySKU(ctx context.Context, sku string) (*domain.P
 	query := `SELECT * FROM products WHERE sku = ?`
 
 	var row productRow
-	err := r.db.GetContext(ctx, &row, query, sku)
+	err := sqlx.GetContext(ctx, r.db, &row, query, sku)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, errors.New("product not found")
@@ -97,7 +100,7 @@ func (r *ProductRepository) List(ctx context.Context, limit, offset int) ([]*dom
 	query := `SELECT * FROM products ORDER BY created_at DESC LIMIT ? OFFSET ?`
 
 	var rows []productRow
-	err := r.db.SelectContext(ctx, &rows, query, limit, offset)
+	err := sqlx.SelectContext(ctx, r.db, &rows, query, limit, offset)
 	if err != nil {
 		return nil, err
 	}
@@ -112,6 +115,134 @@ func (r *ProductRepository) List(ctx context.Context, limit, offset int) ([]*dom
 	}
 
 	return products, nil
+}
+
+// validPropertyKey matches only safe JSON key names (alphanumeric + underscore).
+var validPropertyKey = regexp.MustCompile(`^[a-zA-Z][a-zA-Z0-9_]*$`)
+
+// Search retrieves products matching the given filter options.
+// allowedKeys is the safelist of property keys from the category blueprint;
+// any Properties filter key not in this list is silently ignored to prevent
+// SQL injection via json_extract paths.
+func (r *ProductRepository) Search(ctx context.Context, opts domain.FilterOptions, allowedKeys []string) ([]*domain.Product, error) {
+	allowed := make(map[string]bool, len(allowedKeys))
+	for _, k := range allowedKeys {
+		allowed[k] = true
+	}
+
+	var clauses []string
+	var args []interface{}
+
+	// Full-text search via FTS5
+	if opts.Query != "" {
+		clauses = append(clauses, `p.rowid IN (SELECT rowid FROM products_fts WHERE products_fts MATCH ?)`)
+		args = append(args, opts.Query)
+	}
+
+	// Category filter
+	if opts.CategoryID != "" {
+		clauses = append(clauses, `p.category_id = ?`)
+		args = append(args, opts.CategoryID)
+	}
+
+	// Price range
+	if opts.MinPrice != nil {
+		clauses = append(clauses, `p.base_price >= ?`)
+		args = append(args, *opts.MinPrice)
+	}
+	if opts.MaxPrice != nil {
+		clauses = append(clauses, `p.base_price <= ?`)
+		args = append(args, *opts.MaxPrice)
+	}
+
+	// Dynamic JSON property filters (safelisted keys only)
+	for key, val := range opts.Properties {
+		if !allowed[key] || !validPropertyKey.MatchString(key) {
+			continue
+		}
+		clauses = append(clauses, fmt.Sprintf(`json_extract(p.properties, '$.%s') = ?`, key))
+		args = append(args, val)
+	}
+
+	query := `SELECT p.* FROM products p`
+	if len(clauses) > 0 {
+		query += ` WHERE ` + strings.Join(clauses, " AND ")
+	}
+	query += ` ORDER BY p.created_at DESC`
+
+	limit := opts.Limit
+	if limit <= 0 {
+		limit = 10
+	}
+	offset := opts.Offset
+	if offset < 0 {
+		offset = 0
+	}
+	query += ` LIMIT ? OFFSET ?`
+	args = append(args, limit, offset)
+
+	var rows []productRow
+	err := sqlx.SelectContext(ctx, r.db, &rows, query, args...)
+	if err != nil {
+		return nil, err
+	}
+
+	products := make([]*domain.Product, 0, len(rows))
+	for _, row := range rows {
+		product, err := r.toDomain(&row)
+		if err != nil {
+			return nil, err
+		}
+		products = append(products, product)
+	}
+
+	return products, nil
+}
+
+// inventorySummaryRow holds a row from the inventory summary query.
+type inventorySummaryRow struct {
+	CategoryID   sql.NullString `db:"category_id"`
+	CategoryName sql.NullString `db:"category_name"`
+	Count        int            `db:"count"`
+	TotalValue   float64        `db:"total_value"`
+}
+
+// GetInventorySummary returns aggregated inventory analytics.
+func (r *ProductRepository) GetInventorySummary(ctx context.Context) (*domain.InventorySummary, error) {
+	query := `
+		SELECT
+			p.category_id,
+			c.name AS category_name,
+			COUNT(*) AS count,
+			COALESCE(SUM(p.base_price), 0) AS total_value
+		FROM products p
+		LEFT JOIN categories c ON p.category_id = c.id
+		GROUP BY p.category_id
+	`
+
+	var rows []inventorySummaryRow
+	err := sqlx.SelectContext(ctx, r.db, &rows, query)
+	if err != nil {
+		return nil, err
+	}
+
+	summary := &domain.InventorySummary{}
+	for _, row := range rows {
+		bd := domain.CategoryBreakdown{
+			CategoryID:   row.CategoryID.String,
+			CategoryName: row.CategoryName.String,
+			Count:        row.Count,
+			TotalValue:   row.TotalValue,
+		}
+		if !row.CategoryID.Valid {
+			bd.CategoryName = "Uncategorized"
+		}
+		summary.CategoryBreakdown = append(summary.CategoryBreakdown, bd)
+		summary.TotalItems += row.Count
+		summary.TotalValue += row.TotalValue
+	}
+
+	return summary, nil
 }
 
 // Update updates an existing product.
