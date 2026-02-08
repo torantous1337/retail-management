@@ -33,11 +33,18 @@ type AuditLogRepository interface {
 	VerifyChain(ctx context.Context) (bool, error)
 }
 
+// SaleRepository defines the interface for sale data access.
+type SaleRepository interface {
+	CreateSale(ctx context.Context, sale *domain.Sale) error
+	CreateSaleItem(ctx context.Context, item *domain.SaleItem) error
+}
+
 // Ports bundles all repository interfaces for use in transactions.
 type Ports struct {
 	ProductRepo  ProductRepository
 	CategoryRepo CategoryRepository
 	AuditRepo    AuditLogRepository
+	SaleRepo     SaleRepository
 }
 
 // TransactionManager provides atomic transaction support.

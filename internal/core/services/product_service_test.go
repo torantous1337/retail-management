@@ -50,7 +50,15 @@ func (m *mockProductRepository) Search(_ context.Context, _ domain.FilterOptions
 func (m *mockProductRepository) GetInventorySummary(_ context.Context) (*domain.InventorySummary, error) {
 	return &domain.InventorySummary{}, nil
 }
-func (m *mockProductRepository) Update(_ context.Context, _ *domain.Product) error { return nil }
+func (m *mockProductRepository) Update(_ context.Context, product *domain.Product) error {
+	for i, p := range m.products {
+		if p.ID == product.ID {
+			m.products[i] = product
+			return nil
+		}
+	}
+	return errors.New("product not found")
+}
 func (m *mockProductRepository) Delete(_ context.Context, _ string) error          { return nil }
 
 type mockCategoryRepository struct {
@@ -102,6 +110,7 @@ type mockTransactionManager struct {
 	productRepo  *mockProductRepository
 	categoryRepo *mockCategoryRepository
 	auditRepo    *mockAuditLogRepository
+	saleRepo     ports.SaleRepository
 }
 
 func (m *mockTransactionManager) WithTx(_ context.Context, fn func(tx ports.Ports) error) error {
@@ -109,6 +118,7 @@ func (m *mockTransactionManager) WithTx(_ context.Context, fn func(tx ports.Port
 		ProductRepo:  m.productRepo,
 		CategoryRepo: m.categoryRepo,
 		AuditRepo:    m.auditRepo,
+		SaleRepo:     m.saleRepo,
 	}
 	return fn(txPorts)
 }

@@ -37,6 +37,7 @@ func (m *SQLTransactionManager) WithTx(ctx context.Context, fn func(tx ports.Por
 		ProductRepo:  NewProductRepository(tx),
 		CategoryRepo: NewCategoryRepository(tx),
 		AuditRepo:    NewAuditLogRepository(tx),
+		SaleRepo:     NewSaleRepository(tx),
 	}
 
 	if err := fn(txPorts); err != nil {

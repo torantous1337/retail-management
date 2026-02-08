@@ -33,6 +33,17 @@ type AuditService interface {
 	GetAuditLogs(ctx context.Context, limit, offset int) ([]*domain.AuditLog, error)
 }
 
+// SaleItemRequest represents a request to purchase a product.
+type SaleItemRequest struct {
+	ProductID string
+	Quantity  int
+}
+
+// SaleService defines the interface for sale processing.
+type SaleService interface {
+	ProcessSale(ctx context.Context, items []SaleItemRequest) (*domain.Sale, error)
+}
+
 // AnalyticsService defines the interface for analytics and reporting.
 type AnalyticsService interface {
 	GetInventorySummary(ctx context.Context) (*domain.InventorySummary, error)

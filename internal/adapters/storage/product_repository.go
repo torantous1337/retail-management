@@ -31,6 +31,8 @@ type productRow struct {
 	SKU        string         `db:"sku"`
 	CategoryID sql.NullString `db:"category_id"`
 	BasePrice  float64        `db:"base_price"`
+	Quantity   int            `db:"quantity"`
+	CostPrice  float64        `db:"cost_price"`
 	Properties sql.NullString `db:"properties"`
 	CreatedAt  time.Time      `db:"created_at"`
 	UpdatedAt  time.Time      `db:"updated_at"`
@@ -45,8 +47,8 @@ func (r *ProductRepository) Create(ctx context.Context, product *domain.Product)
 	}
 
 	query := `
-		INSERT INTO products (id, name, sku, category_id, base_price, properties, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO products (id, name, sku, category_id, base_price, quantity, cost_price, properties, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 
 	_, err = r.db.ExecContext(ctx, query,
@@ -55,6 +57,8 @@ func (r *ProductRepository) Create(ctx context.Context, product *domain.Product)
 		product.SKU,
 		sql.NullString{String: product.CategoryID, Valid: product.CategoryID != ""},
 		product.BasePrice,
+		product.Quantity,
+		product.CostPrice,
 		string(propertiesJSON),
 		product.CreatedAt,
 		product.UpdatedAt,
@@ -255,7 +259,7 @@ func (r *ProductRepository) Update(ctx context.Context, product *domain.Product)
 
 	query := `
 		UPDATE products
-		SET name = ?, sku = ?, category_id = ?, base_price = ?, properties = ?
+		SET name = ?, sku = ?, category_id = ?, base_price = ?, quantity = ?, cost_price = ?, properties = ?
 		WHERE id = ?
 	`
 
@@ -264,6 +268,8 @@ func (r *ProductRepository) Update(ctx context.Context, product *domain.Product)
 		product.SKU,
 		sql.NullString{String: product.CategoryID, Valid: product.CategoryID != ""},
 		product.BasePrice,
+		product.Quantity,
+		product.CostPrice,
 		string(propertiesJSON),
 		product.ID,
 	)
@@ -286,6 +292,8 @@ func (r *ProductRepository) toDomain(row *productRow) (*domain.Product, error) {
 		SKU:        row.SKU,
 		CategoryID: row.CategoryID.String,
 		BasePrice:  row.BasePrice,
+		Quantity:   row.Quantity,
+		CostPrice:  row.CostPrice,
 		CreatedAt:  row.CreatedAt,
 		UpdatedAt:  row.UpdatedAt,
 	}
