@@ -239,11 +239,6 @@ func (h *ProductHandler) ImportProducts(c *fiber.Ctx) error {
 
 	count, err := h.productSvc.ImportProducts(c.Context(), categoryID, file)
 	if err != nil {
-		if errors.Is(err, services.ErrInvalidProperty) {
-			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
-				"error": err.Error(),
-			})
-		}
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
 			"error": err.Error(),
 		})

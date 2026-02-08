@@ -246,9 +246,9 @@ func (s *ProductService) ImportProducts(ctx context.Context, categoryID string, 
 			}
 
 			// Create audit log inside the same transaction
-			auditSvc := NewAuditService(tx.AuditRepo)
-			auditSvc.SetPrevHash(prevHash)
-			if err := auditSvc.LogAction(ctx, "CREATE_PRODUCT", "system", map[string]interface{}{
+			txAuditSvc := NewAuditService(tx.AuditRepo)
+			txAuditSvc.SetPrevHash(prevHash)
+			if err := txAuditSvc.LogAction(ctx, "CREATE_PRODUCT", "system", map[string]interface{}{
 				"product_id": product.ID,
 				"action":     "import_product",
 				"sku":        product.SKU,
@@ -256,7 +256,7 @@ func (s *ProductService) ImportProducts(ctx context.Context, categoryID string, 
 			}); err != nil {
 				return fmt.Errorf("CSV line %d: audit log: %w", lineNum+2, err)
 			}
-			prevHash = auditSvc.LastHash()
+			prevHash = txAuditSvc.LastHash()
 
 			imported++
 		}
