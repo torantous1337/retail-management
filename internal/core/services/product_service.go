@@ -2,7 +2,6 @@ package services
 
 import (
 	"context"
-	"errors"
 
 	"github.com/torantous1337/retail-management/internal/core/domain"
 	"github.com/torantous1337/retail-management/internal/core/ports"
@@ -42,9 +41,6 @@ func (s *ProductService) validateProductProperties(ctx context.Context, product 
 func (s *ProductService) CreateProduct(ctx context.Context, product *domain.Product) error {
 	// Validate properties against category blueprint
 	if err := s.validateProductProperties(ctx, product); err != nil {
-		if errors.Is(err, ErrInvalidProperty) {
-			return err
-		}
 		return err
 	}
 

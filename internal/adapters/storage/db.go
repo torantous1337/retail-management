@@ -3,6 +3,8 @@ package storage
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"sort"
 
 	"github.com/jmoiron/sqlx"
 	_ "github.com/mattn/go-sqlite3"
@@ -29,14 +31,15 @@ func InitDB(dbPath string) (*sqlx.DB, error) {
 	return db, nil
 }
 
-// runMigrations executes the SQL schema files.
+// runMigrations discovers and executes all SQL migration files in order.
 func runMigrations(db *sqlx.DB) error {
-	migrationFiles := []string{
-		"migrations/schema.sql",
-		"migrations/002_categories.sql",
+	files, err := filepath.Glob("migrations/*.sql")
+	if err != nil {
+		return fmt.Errorf("failed to discover migration files: %w", err)
 	}
+	sort.Strings(files)
 
-	for _, file := range migrationFiles {
+	for _, file := range files {
 		schema, err := os.ReadFile(file)
 		if err != nil {
 			return fmt.Errorf("failed to read migration file %s: %w", file, err)
