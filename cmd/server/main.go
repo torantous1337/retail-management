@@ -41,11 +41,13 @@ func main() {
 	auditSvc := services.NewAuditService(auditRepo)
 	categorySvc := services.NewCategoryService(categoryRepo)
 	productSvc := services.NewProductService(productRepo, categoryRepo, auditSvc, txManager)
+	analyticsSvc := services.NewAnalyticsService(productRepo)
 
 	// Initialize HTTP handlers
 	productHandler := handler.NewProductHandler(productSvc)
 	auditHandler := handler.NewAuditHandler(auditSvc)
 	categoryHandler := handler.NewCategoryHandler(categorySvc)
+	analyticsHandler := handler.NewAnalyticsHandler(analyticsSvc)
 
 	// Create Fiber app
 	app := fiber.New(fiber.Config{
@@ -73,6 +75,7 @@ func main() {
 	products := api.Group("/products")
 	products.Post("/", productHandler.CreateProduct)
 	products.Post("/import", productHandler.ImportProducts)
+	products.Get("/search", productHandler.SearchProducts)
 	products.Get("/", productHandler.ListProducts)
 	products.Get("/:id", productHandler.GetProduct)
 	products.Get("/sku/:sku", productHandler.GetProductBySKU)
@@ -88,6 +91,10 @@ func main() {
 	audit := api.Group("/audit-logs")
 	audit.Get("/", auditHandler.ListAuditLogs)
 	audit.Get("/verify", auditHandler.VerifyAuditChain)
+
+	// Analytics routes
+	analytics := api.Group("/analytics")
+	analytics.Get("/summary", analyticsHandler.GetInventorySummary)
 
 	// Get port from environment or use default
 	port := os.Getenv("PORT")

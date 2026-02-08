@@ -44,6 +44,12 @@ func (m *mockProductRepository) GetBySKU(_ context.Context, sku string) (*domain
 func (m *mockProductRepository) List(_ context.Context, _, _ int) ([]*domain.Product, error) {
 	return m.products, nil
 }
+func (m *mockProductRepository) Search(_ context.Context, _ domain.FilterOptions, _ []string) ([]*domain.Product, error) {
+	return m.products, nil
+}
+func (m *mockProductRepository) GetInventorySummary(_ context.Context) (*domain.InventorySummary, error) {
+	return &domain.InventorySummary{}, nil
+}
 func (m *mockProductRepository) Update(_ context.Context, _ *domain.Product) error { return nil }
 func (m *mockProductRepository) Delete(_ context.Context, _ string) error          { return nil }
 

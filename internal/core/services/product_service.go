@@ -87,6 +87,23 @@ func (s *ProductService) ListProducts(ctx context.Context, limit, offset int) ([
 	return s.productRepo.List(ctx, limit, offset)
 }
 
+// SearchProducts retrieves products matching the given filter options.
+// Property filter keys are validated against the category blueprint when a
+// CategoryID is provided, preventing SQL injection via JSON paths.
+func (s *ProductService) SearchProducts(ctx context.Context, opts domain.FilterOptions) ([]*domain.Product, error) {
+	var allowedKeys []string
+	if opts.CategoryID != "" {
+		category, err := s.categoryRepo.GetByID(ctx, opts.CategoryID)
+		if err != nil {
+			return nil, fmt.Errorf("category lookup: %w", err)
+		}
+		for _, attr := range category.AttributeDefinitions {
+			allowedKeys = append(allowedKeys, attr.Key)
+		}
+	}
+	return s.productRepo.Search(ctx, opts, allowedKeys)
+}
+
 // UpdateProduct updates a product and logs the action.
 func (s *ProductService) UpdateProduct(ctx context.Context, product *domain.Product) error {
 	// Validate properties against category blueprint

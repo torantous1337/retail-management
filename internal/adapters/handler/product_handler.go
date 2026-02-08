@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"strconv"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -146,6 +147,63 @@ func (h *ProductHandler) ListProducts(c *fiber.Ctx) error {
 		"products": responses,
 		"limit":    limit,
 		"offset":   offset,
+	})
+}
+
+// SearchProducts handles GET /products/search
+func (h *ProductHandler) SearchProducts(c *fiber.Ctx) error {
+	opts := domain.FilterOptions{
+		Query:      c.Query("q"),
+		CategoryID: c.Query("category_id"),
+		Limit:      c.QueryInt("limit", 10),
+		Offset:     c.QueryInt("offset", 0),
+	}
+
+	if minStr := c.Query("min_price"); minStr != "" {
+		v, err := strconv.ParseFloat(minStr, 64)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Invalid min_price",
+			})
+		}
+		opts.MinPrice = &v
+	}
+
+	if maxStr := c.Query("max_price"); maxStr != "" {
+		v, err := strconv.ParseFloat(maxStr, 64)
+		if err != nil {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{
+				"error": "Invalid max_price",
+			})
+		}
+		opts.MaxPrice = &v
+	}
+
+	// Collect property filters from query params prefixed with "prop."
+	opts.Properties = make(map[string]string)
+	c.Context().QueryArgs().VisitAll(func(key, value []byte) {
+		k := string(key)
+		if len(k) > 5 && k[:5] == "prop." {
+			opts.Properties[k[5:]] = string(value)
+		}
+	})
+
+	products, err := h.productSvc.SearchProducts(c.Context(), opts)
+	if err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to search products",
+		})
+	}
+
+	responses := make([]ProductResponse, 0, len(products))
+	for _, product := range products {
+		responses = append(responses, h.toResponse(product))
+	}
+
+	return c.JSON(fiber.Map{
+		"products": responses,
+		"limit":    opts.Limit,
+		"offset":   opts.Offset,
 	})
 }
 

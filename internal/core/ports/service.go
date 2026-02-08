@@ -13,6 +13,7 @@ type ProductService interface {
 	GetProduct(ctx context.Context, id string) (*domain.Product, error)
 	GetProductBySKU(ctx context.Context, sku string) (*domain.Product, error)
 	ListProducts(ctx context.Context, limit, offset int) ([]*domain.Product, error)
+	SearchProducts(ctx context.Context, opts domain.FilterOptions) ([]*domain.Product, error)
 	UpdateProduct(ctx context.Context, product *domain.Product) error
 	DeleteProduct(ctx context.Context, id string) error
 	ImportProducts(ctx context.Context, categoryID string, csvReader io.Reader) (int, error)
@@ -30,4 +31,9 @@ type AuditService interface {
 	LogAction(ctx context.Context, action, userID string, payload map[string]interface{}) error
 	VerifyAuditChain(ctx context.Context) (bool, error)
 	GetAuditLogs(ctx context.Context, limit, offset int) ([]*domain.AuditLog, error)
+}
+
+// AnalyticsService defines the interface for analytics and reporting.
+type AnalyticsService interface {
+	GetInventorySummary(ctx context.Context) (*domain.InventorySummary, error)
 }

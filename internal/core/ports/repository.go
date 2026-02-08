@@ -12,6 +12,8 @@ type ProductRepository interface {
 	GetByID(ctx context.Context, id string) (*domain.Product, error)
 	GetBySKU(ctx context.Context, sku string) (*domain.Product, error)
 	List(ctx context.Context, limit, offset int) ([]*domain.Product, error)
+	Search(ctx context.Context, opts domain.FilterOptions, allowedKeys []string) ([]*domain.Product, error)
+	GetInventorySummary(ctx context.Context) (*domain.InventorySummary, error)
 	Update(ctx context.Context, product *domain.Product) error
 	Delete(ctx context.Context, id string) error
 }
