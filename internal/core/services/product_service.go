@@ -233,10 +233,30 @@ func (s *ProductService) ImportProducts(ctx context.Context, categoryID string, 
 			// Build properties from extra columns
 			properties := make(map[string]interface{})
 			for header, idx := range colIndex {
-				if header == "name" || header == "sku" || header == "base_price" {
+				if header == "name" || header == "sku" || header == "base_price" || header == "quantity" || header == "cost_price" {
 					continue
 				}
 				properties[header] = row[idx]
+			}
+
+			// Parse optional quantity column
+			var quantity int
+			if qIdx, ok := colIndex["quantity"]; ok && row[qIdx] != "" {
+				q, err := strconv.Atoi(row[qIdx])
+				if err != nil {
+					return fmt.Errorf("CSV line %d: invalid quantity %q: %w", lineNum+2, row[qIdx], err)
+				}
+				quantity = q
+			}
+
+			// Parse optional cost_price column
+			var costPrice float64
+			if cpIdx, ok := colIndex["cost_price"]; ok && row[cpIdx] != "" {
+				cp, err := strconv.ParseFloat(row[cpIdx], 64)
+				if err != nil {
+					return fmt.Errorf("CSV line %d: invalid cost_price %q: %w", lineNum+2, row[cpIdx], err)
+				}
+				costPrice = cp
 			}
 
 			// Validate against category blueprint
@@ -253,6 +273,8 @@ func (s *ProductService) ImportProducts(ctx context.Context, categoryID string, 
 				SKU:        sku,
 				CategoryID: categoryID,
 				BasePrice:  basePrice,
+				Quantity:   quantity,
+				CostPrice:  costPrice,
 				Properties: properties,
 				CreatedAt:  now,
 				UpdatedAt:  now,
