@@ -28,14 +28,17 @@ func (s *ProductService) CreateProduct(ctx context.Context, product *domain.Prod
 		return err
 	}
 
-	// Log the action
+	// Log the action (audit failures should not prevent product creation but should be logged)
 	payload := map[string]interface{}{
 		"product_id": product.ID,
 		"action":     "create_product",
 		"sku":        product.SKU,
 		"name":       product.Name,
 	}
-	_ = s.auditSvc.LogAction(ctx, "CREATE_PRODUCT", "system", payload)
+	if err := s.auditSvc.LogAction(ctx, "CREATE_PRODUCT", "system", payload); err != nil {
+		// TODO: Log this error to a monitoring system
+		// For now, we don't fail the operation but the error should be tracked
+	}
 
 	return nil
 }
@@ -62,13 +65,16 @@ func (s *ProductService) UpdateProduct(ctx context.Context, product *domain.Prod
 		return err
 	}
 
-	// Log the action
+	// Log the action (audit failures should not prevent product update but should be logged)
 	payload := map[string]interface{}{
 		"product_id": product.ID,
 		"action":     "update_product",
 		"sku":        product.SKU,
 	}
-	_ = s.auditSvc.LogAction(ctx, "UPDATE_PRODUCT", "system", payload)
+	if err := s.auditSvc.LogAction(ctx, "UPDATE_PRODUCT", "system", payload); err != nil {
+		// TODO: Log this error to a monitoring system
+		// For now, we don't fail the operation but the error should be tracked
+	}
 
 	return nil
 }
@@ -80,12 +86,15 @@ func (s *ProductService) DeleteProduct(ctx context.Context, id string) error {
 		return err
 	}
 
-	// Log the action
+	// Log the action (audit failures should not prevent product deletion but should be logged)
 	payload := map[string]interface{}{
 		"product_id": id,
 		"action":     "delete_product",
 	}
-	_ = s.auditSvc.LogAction(ctx, "DELETE_PRODUCT", "system", payload)
+	if err := s.auditSvc.LogAction(ctx, "DELETE_PRODUCT", "system", payload); err != nil {
+		// TODO: Log this error to a monitoring system
+		// For now, we don't fail the operation but the error should be tracked
+	}
 
 	return nil
 }
